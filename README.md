@@ -1,88 +1,298 @@
-# CSI Motion Detector
+# ESP32 Motion Detection (WiFi CSI)
 
-WiFi CSI (Channel State Information) + BLE-based motion/presence detection.
-An ESP32-family board sniffs WiFi channel state and BLE RSSI variance and
-streams both over serial to a Qt desktop app, which fuses the two signals
-into a debounced motion state.
+> Experimental real-time motion detection using WiFi Channel State Information (CSI) on the ESP32.
 
-```
-┌─────────────────┐   serial (921600 baud)   ┌──────────────────────┐
-│  ESP32 firmware  │ ───────────────────────► │   Qt6 desktop app     │
-│  (WiFi CSI + BLE)│ ◄─────────────────────── │  (calibration, graph, │
-└─────────────────┘      motion state (M/N)   │   motion fusion)       │
-                                               └──────────────────────┘
-```
+![Status](https://img.shields.io/badge/status-WIP-orange)
+![Platform](https://img.shields.io/badge/platform-ESP32-blue)
+![Language](https://img.shields.io/badge/language-C%2B%2B%20%7C%20Python-green)
+![License](https://img.shields.io/badge/license-MIT-brightgreen)
 
-## Hardware compatibility
+---
 
-CSI capture depends on Espressif's `esp_wifi` CSI API, which only exists on
-certain chips. **This is not "any WiFi board" — it needs both a supported
-Espressif chip and BLE.**
+## Overview
 
-| Chip | WiFi CSI | Bluetooth | Works with this project |
-|---|---|---|---|
-| ESP32 (original) | ✅ | ✅ (BT Classic + BLE) | ✅ |
-| ESP32-S3 | ✅ | ✅ (BLE) | ✅ |
-| ESP32-C3 | ✅ | ✅ (BLE) | ✅ |
-| ESP32-C6 | ✅ | ✅ (BLE) | ✅ (untested, should work) |
-| ESP32-S2 | ✅ | ❌ no radio | ❌ no BLE, so no fusion signal |
-| ESP8266 / ESP8285 | ❌ | ❌ | ❌ not an option |
-| Non-Espressif WiFi modules | ❌ | — | ❌ not an option |
+ESP32 Motion Detection uses **WiFi Channel State Information (CSI)** instead of traditional motion sensors such as PIR modules or cameras.
 
-Any dev board built on a supported chip works (DevKitC, WROOM/WROVER
-breakouts, NodeMCU-32S, TTGO/LilyGO boards, etc.) — the firmware only cares
-about the chip, not the board layout. `firmware/esp32_csi_capture/board_config.h`
-auto-detects the target and picks a sane default LED pin; override `LED_PIN`
-as a build flag if your board's LED is on a nonstandard pin, and the sketch
-will fail to compile with a clear error on an unsupported chip (e.g. S2)
-rather than silently misbehaving.
+By analyzing changes in wireless signals, the project can detect movement within the environment in real time.
 
-## Repo layout
+This project is intended for experimentation, research, and learning about WiFi sensing using inexpensive ESP32 hardware.
+
+---
+
+## Features
+
+- 📡 Real-time CSI capture
+- 🚶 Motion detection using wireless signal variations
+- 💻 Python control interface
+- 📈 Live CSI visualization
+- ⚡ Serial command interface
+- 🔧 Adjustable detection parameters
+- 🧪 Experimental detection algorithms
+
+---
+
+## How It Works
 
 ```
-firmware/esp32_csi_capture/   Arduino sketch flashed to the ESP32
-desktop-app/                  Qt6 + CMake desktop application
-  src/                        Application source
-  third_party/qcustomplot/    Vendored plotting library (see LICENSE note)
-  scripts/build_windows.bat   One-shot MinGW/CMake build + launch for Windows
+           WiFi Packets
+                 │
+                 ▼
+        ESP32 CSI Capture
+                 │
+                 ▼
+          Serial Connection
+                 │
+                 ▼
+         Python Controller
+                 │
+        Signal Processing
+                 │
+                 ▼
+        Motion Detection
 ```
 
-## Building the firmware
+The ESP32 continuously captures CSI packets from nearby WiFi traffic.
 
-1. Install the [Arduino IDE](https://www.arduino.cc/en/software) (or
-   PlatformIO) and add the ESP32 board package
-   (`https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json`
-   in Boards Manager URLs).
-2. Open `firmware/esp32_csi_capture/esp32_csi_capture.ino`.
-3. Select your board (Tools → Board → ESP32 Arduino → your board).
-4. Flash it. Serial baud is `921600`.
+The Python application receives these measurements, processes them, filters noise, and determines whether movement has occurred.
 
-## Building the desktop app
+---
 
-Requires Qt 6 (Widgets, SerialPort, PrintSupport) and CMake 3.16+.
+## Hardware Requirements
+
+- ESP32 Development Board
+- USB Cable
+- Computer running Python
+- WiFi Access Point or Router
+
+Optional:
+
+- External antenna ESP32
+- Two ESP32 boards for custom experiments
+
+---
+
+## Software Requirements
+
+### ESP32
+
+- Arduino IDE
+- ESP32 Board Package
+
+### Python
+
+- Python 3.10+
+- Required libraries
+
+Example:
 
 ```bash
-cd desktop-app
-cmake -B build -DCMAKE_PREFIX_PATH=/path/to/Qt/6.x/your_kit
-cmake --build build
+pip install pyserial numpy matplotlib
 ```
 
-On Windows with the MinGW Qt kit, `scripts\build_windows.bat` does the above
-plus `windeployqt` and launches the app — edit `QT_DIR` / `MINGW_DIR` at the
-top of the script to match your install paths first.
+---
 
-## Serial protocol
+## Installation
 
-Binary frames: `0xAA 0x55 <type:1> <len:2 LE> <payload> <xor checksum:1>`
-- `type 0x01` — CSI packet (`rssi:1` + I/Q byte pairs)
-- `type 0x02` — BLE packet (`avgRssi:2 LE` + `deviceCount:1`)
+### Clone the repository
 
-Plain-text commands (newline-terminated) sent host → device:
-`SCAN`, `CONNECT|ssid|password`, `SNIFF|channel`, `RECONNECT`, `M`/`N` (motion
-state, drives the status LED).
+```bash
+git clone https://github.com/ymvnby-alt/ESP32MotiondetectionWIP.git
+cd ESP32MotiondetectionWIP
+```
+
+---
+
+### Upload the firmware
+
+1. Open the Arduino project.
+2. Select your ESP32 board.
+3. Choose the correct COM port.
+4. Upload.
+
+---
+
+### Start the controller
+
+```bash
+python csi_control.py
+```
+
+---
+
+## Serial Commands
+
+| Command | Description |
+|----------|-------------|
+| `SCAN` | Scan nearby WiFi networks |
+| `CONNECT <SSID> <PASSWORD>` | Connect ESP32 to WiFi |
+| `START` | Begin CSI capture |
+| `STOP` | Stop CSI capture |
+| `STATUS` | Show current status |
+| `HELP` | Display available commands |
+
+*(Update this list if additional commands are added.)*
+
+---
+
+## Project Structure
+
+```
+ESP32MotiondetectionWIP/
+
+├── firmware/
+│   ├── esp32_motion.ino
+│
+├── python/
+│   ├── csi_control.py
+│   ├── processing.py
+│   └── visualization.py
+│
+├── docs/
+│
+├── README.md
+└── LICENSE
+```
+
+*(Adjust to match the actual repository structure.)*
+
+---
+
+## Detection Pipeline
+
+```
+Raw CSI Packets
+        │
+        ▼
+Amplitude Extraction
+        │
+        ▼
+Noise Filtering
+        │
+        ▼
+Baseline Calculation
+        │
+        ▼
+Variance / Signal Analysis
+        │
+        ▼
+Motion Decision
+```
+
+The current implementation focuses on reliable motion detection.
+
+Future versions may include more advanced signal processing and machine learning.
+
+---
+
+## Example Output
+
+```
+Connecting...
+
+Connected!
+
+Starting CSI Capture...
+
+Motion Score: 0.07
+
+Motion Score: 0.08
+
+Motion Score: 0.63
+Motion Detected!
+
+Motion Score: 0.11
+```
+
+---
+
+## Current Limitations
+
+- Work in Progress
+- Detection quality depends on environment
+- Requires WiFi traffic
+- Not designed for multiple-person tracking
+- Algorithm is still being refined
+
+---
+
+## Roadmap
+
+### Core
+
+- [x] CSI Capture
+- [x] Python Controller
+- [x] Motion Detection
+- [ ] Better filtering
+- [ ] Automatic calibration
+- [ ] Configuration file
+
+### Visualization
+
+- [ ] Live graphs
+- [ ] Heat maps
+- [ ] Detection history
+
+### Detection
+
+- [ ] Occupancy detection
+- [ ] Multi-person detection
+- [ ] Gesture recognition
+- [ ] Machine learning classifier
+
+### Quality of Life
+
+- [ ] GUI
+- [ ] Logging
+- [ ] Save datasets
+- [ ] Home Assistant integration
+
+---
+
+## Performance
+
+Performance depends on:
+
+- WiFi signal strength
+- Router placement
+- ESP32 antenna
+- Sampling rate
+- Environmental interference
+
+Results may vary between locations.
+
+---
+
+## Contributing
+
+Contributions are welcome.
+
+If you discover bugs or have ideas for improvements:
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Open a Pull Request
+
+Bug reports and suggestions are also appreciated.
+
+---
+
+## Disclaimer
+
+This project is experimental and intended for research and educational purposes.
+
+Detection accuracy is not guaranteed and should not be relied upon for security-critical applications.
+
+---
 
 ## License
 
-MIT for this project's own code — see [LICENSE](LICENSE). QCustomPlot in
-`desktop-app/third_party/qcustomplot/` ships under its own GPL/commercial
-terms; check that license before redistributing binaries.
+This project is licensed under the MIT License.
+
+---
+
+## Author
+
+Created by **ymvnby-alt**
+
+If you find this project useful, consider giving the repository a ⭐.
